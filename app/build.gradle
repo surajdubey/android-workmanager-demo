@@ -67,8 +67,10 @@ dependencies {
     implementation "com.android.support.constraint:constraint-layout:$versions.constraint_layout"
     implementation "com.github.bumptech.glide:glide:$versions.glide"
 
-    implementation 'com.amazonaws:aws-android-sdk-core:2.2.22'
-    implementation 'com.amazonaws:aws-android-sdk-s3:2.2.22'
+    implementation 'com.amazonaws:aws-android-sdk-core:2.12.5'
+    implementation 'com.amazonaws:aws-android-sdk-s3:2.12.5'
+    implementation ('com.amazonaws:aws-android-sdk-mobile-client:2.12.5') { transitive = true }
+
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 
 }

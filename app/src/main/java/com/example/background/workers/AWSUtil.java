@@ -67,8 +67,11 @@ public class AWSUtil {
      */
     public static TransferUtility getTransferUtility(Context context) {
         if (sTransferUtility == null) {
-            sTransferUtility = new TransferUtility(getS3Client(context.getApplicationContext()),
-                    context.getApplicationContext());
+
+            sTransferUtility = TransferUtility.builder()
+                    .context(context.getApplicationContext())
+                    .s3Client(getS3Client(context.getApplicationContext()))
+                    .build();
         }
 
         return sTransferUtility;
