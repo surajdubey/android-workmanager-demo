@@ -31,6 +31,7 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
         val signatureFileName = signatureFile.name
         transferObserver = transferUtility.upload(AWS_BUCKET_NAME, signatureFileName, signatureFile)
 
+
         return CallbackToFutureAdapter.getFuture {
 
             try {

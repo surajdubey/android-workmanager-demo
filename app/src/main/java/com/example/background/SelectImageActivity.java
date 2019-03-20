@@ -18,9 +18,14 @@ package com.example.background;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -35,10 +40,10 @@ import com.amazonaws.mobile.client.Callback;
 import com.amazonaws.mobile.client.UserStateDetails;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferObserver;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferService;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferState;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtility;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.example.background.workers.AWSUtil;
 import com.example.background.workers.UpdateSignatureWorker;
 
 import java.io.File;
@@ -46,6 +51,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import androidx.annotation.RequiresApi;
 import androidx.work.BackoffPolicy;
 import androidx.work.Constraints;
 import androidx.work.NetworkType;
@@ -75,6 +81,8 @@ public class SelectImageActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_select);
 
+        runService();
+
         if (savedInstanceState != null) {
             mPermissionRequestCount =
                     savedInstanceState.getInt(KEY_PERMISSIONS_REQUEST_COUNT, 0);
@@ -85,14 +93,62 @@ public class SelectImageActivity extends AppCompatActivity {
 
         // Create request to get image from filesystem when button clicked
         findViewById(R.id.selectImage).setOnClickListener(view -> {
+//            normalUpload();
             upload();
-
-            normalUpload();
 /*            Intent chooseIntent = new Intent(
                     Intent.ACTION_PICK,
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             startActivityForResult(chooseIntent, REQUEST_CODE_IMAGE);*/
         });
+    }
+
+    private void runService() {
+
+        Intent intent = new Intent(getApplicationContext(), TransferService.class);
+
+/*
+
+        Notification notification = new NotificationCompat.Builder(this, "HIGH")
+                .setContentText("Service Content Text")
+                .setContentTitle("Service Content Title")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+*/
+
+        Notification notification = getNotification();
+        intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION, notification);
+        intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION_ID, 123);
+        intent.putExtra(TransferService.INTENT_KEY_REMOVE_NOTIFICATION, true);
+
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getApplicationContext().startForegroundService(intent);
+        } else {
+            getApplicationContext().startService(intent);
+        }
+
+    }
+
+    private Notification getNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            String channelId = createNotificationChannel();
+            return new Notification.Builder(this, channelId)
+                    .setContentText("Service Content Text")
+                    .setContentTitle("Service Content Title")
+                    .build();
+        }
+
+        return new Notification.Builder(this)
+                .setContentText("Service Content Text")
+                .setContentTitle("Service Content Title")
+                .build();
+
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private String createNotificationChannel() {
+        NotificationChannel channel = new NotificationChannel("com.example.background", "name", NotificationManager.IMPORTANCE_HIGH);
+        ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).createNotificationChannel(channel);
+        return channel.getId();
     }
 
     private void upload() {
@@ -131,6 +187,8 @@ public class SelectImageActivity extends AppCompatActivity {
 
             @Override
             public void onStateChanged(int id, TransferState state) {
+                Log.d(TAG, "state changed " + state.name());
+
                 if (TransferState.COMPLETED == state) {
                     // Handle a completed upload.
                     Log.d(TAG, "Upload completed");
@@ -140,16 +198,17 @@ public class SelectImageActivity extends AppCompatActivity {
             @Override
             public void onProgressChanged(int id, long bytesCurrent, long bytesTotal) {
                 float percentDonef = ((float) bytesCurrent / (float) bytesTotal) * 100;
-                int percentDone = (int)percentDonef;
+                int percentDone = (int) percentDonef;
 
-                Log.d("YourActivity", "ID:" + id + " bytesCurrent: " + bytesCurrent
+                Log.d(TAG, "ID:" + id + " bytesCurrent: " + bytesCurrent
                         + " bytesTotal: " + bytesTotal + " " + percentDone + "%");
             }
 
             @Override
             public void onError(int id, Exception ex) {
                 // Handle errors
-                Log.e(TAG, "Exception onError", ex);
+                ex.printStackTrace();
+                Log.e(TAG, "Exception onError");
             }
 
         });
@@ -157,10 +216,13 @@ public class SelectImageActivity extends AppCompatActivity {
     }
 
     private TransferObserver getTransferObserver() {
+
+
         TransferUtility transferUtility =
                 TransferUtility.builder()
                         .context(getApplicationContext())
                         .awsConfiguration(AWSMobileClient.getInstance().getConfiguration())
+                        .defaultBucket("mz-mobile")
                         .s3Client(new AmazonS3Client(AWSMobileClient.getInstance()))
                         .build();
 
