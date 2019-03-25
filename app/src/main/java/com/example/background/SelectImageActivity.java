@@ -81,8 +81,6 @@ public class SelectImageActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_select);
 
-        runService();
-
         if (savedInstanceState != null) {
             mPermissionRequestCount =
                     savedInstanceState.getInt(KEY_PERMISSIONS_REQUEST_COUNT, 0);
@@ -159,9 +157,11 @@ public class SelectImageActivity extends AppCompatActivity {
 
         WorkRequest workRequest = new OneTimeWorkRequest.Builder(UpdateSignatureWorker.class)
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 1, TimeUnit.SECONDS)
+                .addTag("mz-signature-upload")
                 .setConstraints(constraints)
                 .build();
 
+        runService();
         WorkManager.getInstance().enqueue(workRequest);
 
     }
