@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.support.v4.app.NotificationManagerCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.concurrent.futures.CallbackToFutureAdapter
@@ -53,6 +54,7 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
         return CallbackToFutureAdapter.getFuture {
 
             Log.d(TAG, "Reattempting at ${System.currentTimeMillis()}")
+
             try {
                 transferListener = getTransferListener(it, signatureFileName, transferObserver!!)
                 transferObserver!!.setTransferListener(transferListener)
@@ -69,6 +71,7 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
 
                 it.set(Result.retry())
             }
+
         }
 
     }
@@ -130,17 +133,12 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
 
         val intent = Intent(applicationContext, TransferService::class.java)
 
-        /*
-
-        Notification notification = new NotificationCompat.Builder(this, "HIGH")
-                .setContentText("Service Content Text")
-                .setContentTitle("Service Content Title")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-*/
-
+        val notificationId = 123
         val notification = getNotification()
+        val notificationManagerCompat = NotificationManagerCompat.from(appContext)
+        notificationManagerCompat.notify(notificationId, notification)
         intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION, notification)
-        intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION_ID, 123)
+        intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION_ID, notificationId)
         intent.putExtra(TransferService.INTENT_KEY_REMOVE_NOTIFICATION, true)
 
 
@@ -156,6 +154,7 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channelId = createNotificationChannel()
             return Notification.Builder(appContext, channelId)
+                    .setSmallIcon(android.R.drawable.star_on)
                     .setContentText("Service Content Text")
                     .setContentTitle("Service Content Title")
                     .build()

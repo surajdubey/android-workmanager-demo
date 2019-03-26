@@ -30,6 +30,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -89,6 +90,8 @@ public class SelectImageActivity extends AppCompatActivity {
         // Make sure the app has correct permissions to run
         requestPermissionsIfNecessary();
 
+//        runService();
+
         // Create request to get image from filesystem when button clicked
         findViewById(R.id.selectImage).setOnClickListener(view -> {
 //            normalUpload();
@@ -112,9 +115,14 @@ public class SelectImageActivity extends AppCompatActivity {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 */
 
+        int notificationId = 123;
+
         Notification notification = getNotification();
+        NotificationManagerCompat notificationManagerCompat = NotificationManagerCompat.from(this);
+        notificationManagerCompat.notify(notificationId, notification);
+
         intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION, notification);
-        intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION_ID, 123);
+        intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION_ID, notificationId);
         intent.putExtra(TransferService.INTENT_KEY_REMOVE_NOTIFICATION, true);
 
 
@@ -130,6 +138,7 @@ public class SelectImageActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             String channelId = createNotificationChannel();
             return new Notification.Builder(this, channelId)
+                    .setSmallIcon(android.R.drawable.star_on)
                     .setContentText("Service Content Text")
                     .setContentTitle("Service Content Title")
                     .build();
@@ -161,7 +170,7 @@ public class SelectImageActivity extends AppCompatActivity {
                 .setConstraints(constraints)
                 .build();
 
-        runService();
+//        runService();
         WorkManager.getInstance().enqueue(workRequest);
 
     }

@@ -12,13 +12,12 @@ import androidx.annotation.RequiresApi
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferService
 
 class MyBootReceiver: BroadcastReceiver() {
-    lateinit var context: Context
     override fun onReceive(context: Context?, intent: Intent?) {
         Log.d("MyBootReceiver", "onReceive")
         intent?.let {
             if(it.action == Intent.ACTION_BOOT_COMPLETED) {
                 context?.let {
-                    runService(it)
+//                    runService(it)
                 }
             }
         }
@@ -27,14 +26,6 @@ class MyBootReceiver: BroadcastReceiver() {
     private fun runService(applicationContext: Context) {
 
         val intent = Intent(applicationContext, TransferService::class.java)
-
-        /*
-
-        Notification notification = new NotificationCompat.Builder(this, "HIGH")
-                .setContentText("Service Content Text")
-                .setContentTitle("Service Content Title")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-*/
 
         val notification = getNotification(applicationContext)
         intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION, notification)
