@@ -17,7 +17,7 @@ class MyBootReceiver: BroadcastReceiver() {
         intent?.let {
             if(it.action == Intent.ACTION_BOOT_COMPLETED) {
                 context?.let {
-//                    runService(it)
+                    runService(it)
                 }
             }
         }

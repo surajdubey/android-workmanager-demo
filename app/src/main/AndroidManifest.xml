@@ -46,7 +46,7 @@
             android:name="com.amazonaws.mobileconnectors.s3.transferutility.TransferService"
             android:enabled="true" />
 
-        <receiver
+<!--        <receiver
             android:name=".receiver.MyBootReceiver"
             android:enabled="true"
             android:exported="true"
@@ -59,12 +59,12 @@
 
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <!--For HTC devices-->
+                &lt;!&ndash;For HTC devices&ndash;&gt;
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
-                <!--For MIUI devices-->
+                &lt;!&ndash;For MIUI devices&ndash;&gt;
                 <action android:name="android.intent.action.REBOOT" />
             </intent-filter>
-        </receiver>
+        </receiver>-->
     </application>
 
 </manifest>

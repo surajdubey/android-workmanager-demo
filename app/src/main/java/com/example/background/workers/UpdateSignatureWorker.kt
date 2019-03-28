@@ -6,14 +6,13 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Environment
 import android.support.v4.app.NotificationManagerCompat
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
-import com.amazonaws.auth.AWSCredentials
-import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.mobile.client.AWSMobileClient
 import com.amazonaws.mobile.client.Callback
 import com.amazonaws.mobile.client.UserStateDetails
@@ -27,6 +26,15 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
     private val transferUtility: TransferUtility = AWSUtil.getTransferUtility(appContext)
     private lateinit var transferListener: TransferListener
     private var transferObserver: TransferObserver? = null
+    val sdPath = Environment.getExternalStorageDirectory().path
+    // for Oreo emulator
+//        val signatureFile = File("$sdPath/Music/TeraYaarHoonMain.mp3")
+
+    // for emulator with version less than Oreo
+//    val signatureFile = File("/storage/emulated/0/Music/TeraYaarHoonMain.mp3")
+
+    // for Tenor E device
+    val signatureFile = File("/storage/emulated/0/Download/TeraYaarHoonMain.mp3")
 
     companion object {
         const val TAG = "UpdateSignatureWorker"
@@ -47,17 +55,25 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
             }
         })
 
-        val signatureFile = File("/storage/emulated/0/Download/TeraYaarHoonMain.mp3")
+        Log.d(TAG, "File exists ${signatureFile.exists()}")
+
+//        val signatureFile = File("/storage/emulated/0/Download/TeraYaarHoonMain.mp3")
         val signatureFileName = signatureFile.name
         transferObserver = getTransferObserver()
 
         return CallbackToFutureAdapter.getFuture {
+
+            //            it.set(Result.success())
 
             Log.d(TAG, "Reattempting at ${System.currentTimeMillis()}")
 
             try {
                 transferListener = getTransferListener(it, signatureFileName, transferObserver!!)
                 transferObserver!!.setTransferListener(transferListener)
+
+                transferObserver?.let {
+                    Log.d(TAG, "Transfer being uploaded is ${it.id}")
+                }
 
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -85,10 +101,9 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
                 .s3Client(AmazonS3Client(AWSMobileClient.getInstance()))
                 .build()
 
-        val file = File("/storage/emulated/0/Download/TeraYaarHoonMain.mp3")
         return transferUtility.upload(
-                file.name,
-                file)
+                signatureFile.name,
+                signatureFile)
     }
 
     private fun getTransferListener(completer: CallbackToFutureAdapter.Completer<Result>, signatureFileName: String, transferObserver: TransferObserver): TransferListener {
@@ -98,19 +113,15 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
                 Log.d(TAG, "New status $id $state $isStopped $runAttemptCount")
 
                 if (state == TransferState.COMPLETED) {
-                    (appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
                     completer.set(Result.success())
                     Log.d(TAG, "File successfully uploaded $signatureFileName")
-
                     Log.d(TAG, "any work pending ${WorkManagerUtils.isAnyWorkPending()}")
-                    if(!WorkManagerUtils.isAnyWorkPending()) {
-                        Log.d(TAG, "Removing notification")
-                        appContext.stopService(Intent(appContext, TransferService::class.java))
-                    }
+
                 }
 
                 // check if we need to put state == TransferState.PAUSED || state == TransferState.WAITING_FOR_NETWORK
                 if (state == TransferState.FAILED) {
+                    Log.d(TAG, "Inside state == TransferState.FAILED")
                     retry(completer, transferObserver)
                 }
             }
@@ -121,7 +132,8 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
             }
 
             override fun onError(id: Int, ex: Exception) {
-                Log.e(TAG, "onError TransferListener for $signatureFileName")
+                Log.d(TAG, "onError(id: Int, ex: Exception)")
+                Log.e(TAG, "onError TransferListener for id: $id fileName: $signatureFileName")
 
                 ex.printStackTrace()
                 retry(completer, transferObserver)
@@ -133,16 +145,19 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
 
         val intent = Intent(applicationContext, TransferService::class.java)
 
-        val notificationId = 123
-        val notification = getNotification()
-        val notificationManagerCompat = NotificationManagerCompat.from(appContext)
-        notificationManagerCompat.notify(notificationId, notification)
-        intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION, notification)
-        intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION_ID, notificationId)
-        intent.putExtra(TransferService.INTENT_KEY_REMOVE_NOTIFICATION, true)
-
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+            val notificationId = inputData.getInt("notificationId", 0)
+
+            Log.d(TAG, "NotificationId $notificationId")
+            val notification = getNotification(notificationId)
+            val notificationManagerCompat = NotificationManagerCompat.from(appContext)
+            notificationManagerCompat.notify(notificationId, notification)
+            intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION, notification)
+            intent.putExtra(TransferService.INTENT_KEY_NOTIFICATION_ID, notificationId)
+            intent.putExtra(TransferService.INTENT_KEY_REMOVE_NOTIFICATION, false)
+
             applicationContext.startForegroundService(intent)
         } else {
             applicationContext.startService(intent)
@@ -150,21 +165,14 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
 
     }
 
-    private fun getNotification(): Notification {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelId = createNotificationChannel()
-            return Notification.Builder(appContext, channelId)
-                    .setSmallIcon(android.R.drawable.star_on)
-                    .setContentText("Service Content Text")
-                    .setContentTitle("Service Content Title")
-                    .build()
-        }
-
-        return Notification.Builder(appContext)
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private fun getNotification(notificationId: Int): Notification {
+        val channelId = createNotificationChannel()
+        return Notification.Builder(appContext, channelId)
+                .setSmallIcon(android.R.drawable.star_on)
                 .setContentText("Service Content Text")
-                .setContentTitle("Service Content Title")
+                .setContentTitle("Service Content Title $notificationId")
                 .build()
-
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -175,9 +183,11 @@ class UpdateSignatureWorker(val appContext: Context, workerParams: WorkerParamet
     }
 
     private fun retry(completer: CallbackToFutureAdapter.Completer<Result>, transferObserver: TransferObserver) {
-        transferUtility.cancel(transferObserver.id)
-        completer.set(Result.retry())
+//        transferUtility.cancel(transferObserver.id)
+        Log.d(TAG, "Canceled ${transferObserver.id} new state ${transferObserver.state}")
         transferObserver.cleanTransferListener()
+
+        completer.set(Result.retry())
     }
 
     override fun onStopped() {
